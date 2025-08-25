@@ -24,6 +24,16 @@ export const InvoiceDetailCard = ({
     freight: "bg-orange-100 text-orange-800 border-orange-200",
   };
 
+  const documentTypeLabels = {
+    "tax-invoice": "Tax Invoice",
+    "debit-note": "Debit Note",
+  };
+
+  const documentTypeColors = {
+    "tax-invoice": "bg-purple-100 text-purple-800 border-purple-200",
+    "debit-note": "bg-red-100 text-red-800 border-red-200",
+  };
+
   return (
     <div
       key={invoice.id}
@@ -41,6 +51,13 @@ export const InvoiceDetailCard = ({
               }`}
             >
               {typeLabels[invoice.type]}
+            </span>
+            <span
+              className={`px-2 py-1 text-xs font-medium rounded border ${
+                documentTypeColors[invoice.documentType]
+              }`}
+            >
+              {documentTypeLabels[invoice.documentType]}
             </span>
             <span className="text-sm font-medium">
               {formatCurrency(invoice.amount)}
