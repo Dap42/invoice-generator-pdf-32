@@ -30,7 +30,7 @@ export const generateDebitNotePDF = (
   doc.setTextColor(255, 0, 0); // Set color to red for "DEBIT"
   doc.text("DEBIT ", pageWidth - 45, 12 + yOffset);
   doc.setTextColor(0, 0, 0); // Set color to black for "NOTE"
-  doc.text("NOTE", pageWidth - 45 + 12, 12 + yOffset); // Position "NOTE" after "DEBIT"
+  doc.text(" NOTE", pageWidth - 45 + 12, 12 + yOffset); // Position "NOTE" after "DEBIT"
 
   // Left side fields - dynamic content
   doc.setFontSize(7);
