@@ -7,6 +7,7 @@ import { FileText, Zap } from "lucide-react";
 import type { MergedInvoiceData } from "@/types/invoice";
 import { GeneratedInvoiceList } from "@/components/GeneratedInvoiceList";
 import { generateInvoicePDF } from "@/lib/invoice-pdf-generator";
+import { generateDebitNotePDF } from "@/lib/debit-note-pdf-generator";
 
 interface InvoiceGeneratorProps {
   mergedData: MergedInvoiceData[];
@@ -19,6 +20,7 @@ export interface GeneratedInvoice {
   blob: Blob;
   type: "godown" | "main" | "freight";
   amount: number;
+  documentType: "tax-invoice" | "debit-note";
 }
 
 export const InvoiceGenerator = ({ mergedData }: InvoiceGeneratorProps) => {
@@ -63,7 +65,7 @@ export const InvoiceGenerator = ({ mergedData }: InvoiceGeneratorProps) => {
 
     try {
       const invoices: GeneratedInvoice[] = [];
-      const totalInvoices = mergedData.length * 3;
+      const totalInvoices = mergedData.length * 6; // 6 documents per customer (3 tax invoices + 3 debit notes)
       let processedCount = 0;
 
       for (let i = 0; i < mergedData.length; i++) {
@@ -96,16 +98,35 @@ export const InvoiceGenerator = ({ mergedData }: InvoiceGeneratorProps) => {
         ];
 
         for (const invoiceInfo of invoiceTypes) {
-          const blob = generateInvoicePDF(data, invoiceInfo.type, formatNumber);
-          const fileName = `${invoiceInfo.name}_${customerNameSafe}_${data.sapCode}.pdf`;
+          // Generate Tax Invoice
+          const taxInvoiceBlob = generateInvoicePDF(data, invoiceInfo.type, formatNumber);
+          const taxInvoiceFileName = `TaxInvoice_${invoiceInfo.name}_${customerNameSafe}_${data.sapCode}.pdf`;
 
           invoices.push({
-            id: `${data.sapCode}-${invoiceInfo.type}`,
+            id: `${data.sapCode}-${invoiceInfo.type}-tax`,
             customerName: data.customer.customerName,
-            fileName,
-            blob,
+            fileName: taxInvoiceFileName,
+            blob: taxInvoiceBlob,
             type: invoiceInfo.type,
             amount: invoiceInfo.amount,
+            documentType: "tax-invoice",
+          });
+
+          processedCount++;
+          setProgress((processedCount / totalInvoices) * 100);
+
+          // Generate Debit Note
+          const debitNoteBlob = generateDebitNotePDF(data, invoiceInfo.type, formatNumber);
+          const debitNoteFileName = `DebitNote_${invoiceInfo.name}_${customerNameSafe}_${data.sapCode}.pdf`;
+
+          invoices.push({
+            id: `${data.sapCode}-${invoiceInfo.type}-debit`,
+            customerName: data.customer.customerName,
+            fileName: debitNoteFileName,
+            blob: debitNoteBlob,
+            type: invoiceInfo.type,
+            amount: invoiceInfo.amount,
+            documentType: "debit-note",
           });
 
           processedCount++;
@@ -172,8 +193,8 @@ export const InvoiceGenerator = ({ mergedData }: InvoiceGeneratorProps) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                Ready to generate {mergedData.length * 3} invoices (
-                {mergedData.length} customers × 3 types)
+                Ready to generate {mergedData.length * 6} documents (
+                {mergedData.length} customers × 6 documents: 3 Tax Invoices + 3 Debit Notes)
               </p>
             </div>
             <Button
