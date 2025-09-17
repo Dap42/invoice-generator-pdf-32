@@ -30,8 +30,17 @@ export const generateDebitNotePDF = (
   currentYPosition += 10; // Increased spacing between customer name and address
 
   doc.setFont(undefined, "bold"); // Set font to bold for address
-  const customerAddressLines = doc.splitTextToSize(data.customer.address, 150); // Increased width for centering
-  const addressWithLabel = ["ADDRESS:", ...customerAddressLines]; // Add "ADDRESS:" label
+  let customerAddressLines = doc.splitTextToSize(data.customer.address, 150); // Increased width for centering
+  let addressWithLabel: string[];
+
+  if (customerAddressLines.length > 0) {
+    addressWithLabel = [
+      `ADDRESS: ${customerAddressLines[0]}`,
+      ...customerAddressLines.slice(1),
+    ];
+  } else {
+    addressWithLabel = ["ADDRESS:"];
+  }
 
   addressWithLabel.forEach((line) => {
     doc.text(line, pageWidth / 2, currentYPosition, {
@@ -39,8 +48,6 @@ export const generateDebitNotePDF = (
     });
     currentYPosition += 4.5; // Increased spacing for each line
   });
-  // currentYPosition += customerAddressLines.length * 4.5; // This line is no longer needed as spacing is handled in the loop
-
   // GSTIN, PAN, MOB - Centered and condensed
   doc.setFont(undefined, "bold");
   const gstinPanMobText = `GSTIN: ${data.customer.gstin}   PAN: ${
