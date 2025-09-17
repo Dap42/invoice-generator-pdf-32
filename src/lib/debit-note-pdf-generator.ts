@@ -140,8 +140,11 @@ export const generateDebitNotePDF = (
   doc.text("JUBILANT AGRI AND CONSUMER PRODUCTS LIMITED", 20, currentYPosition);
   currentYPosition += 5;
   jubilantInfo.address.forEach((line) => {
-    doc.text(line, 20, currentYPosition);
-    currentYPosition += 4.5; // Adjusted spacing
+    const wrappedLines = doc.splitTextToSize(line, 170); // Wrap text to 170 units width
+    wrappedLines.forEach((wrappedLine) => {
+      doc.text(wrappedLine, 20, currentYPosition);
+      currentYPosition += 4.5; // Adjusted spacing for each wrapped line
+    });
   });
   doc.setFont(undefined, "bold"); // Make GSTIN bold
   doc.text(`GSTIN : ${jubilantInfo.gstin}`, 20, currentYPosition);
