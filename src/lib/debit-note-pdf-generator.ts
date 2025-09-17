@@ -174,10 +174,10 @@ export const generateDebitNotePDF = (
       "Requested to kindly reimburse the Godown Rent Expenses as per details given as under:";
   } else if (invoiceType === "main") {
     introductoryText =
-      "Requested to kindly reimburse me the Handling Expenses as per details given as under:";
+      "Requested to kindly reimburse the Handling Expenses as per details given as under:";
   } else if (invoiceType === "freight") {
     introductoryText =
-      "Requested to kindly reimburse me the Secondary Freight Expenses as per details given as below:";
+      "Requested to kindly reimburse the Secondary Freight Expenses as per details given as below:";
   }
   doc.text(introductoryText, 20, currentYPosition);
   currentYPosition += 12; // Increased spacing
