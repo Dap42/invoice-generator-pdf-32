@@ -15,99 +15,165 @@ export const generateDebitNotePDF = (
 ): Blob => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
-  const yOffset = 15; // Offset to move content down
+  const yOffset = 25; // Increased offset to move content down for more top margin
 
   const customerState = extractStateFromAddress(data.customer.address);
 
-  // Name of Company - very top
-  doc.setFontSize(9);
+  let currentYPosition = yOffset; // Initialize currentYPosition for consistent tracking
+
+  // Receiver Details (Customer) - Centered for all types
+  doc.setFontSize(11); // Increased font size
   doc.setFont(undefined, "bold");
-  doc.text(data.customer.customerName, 20, 12 + yOffset);
-
-  // DEBIT NOTE
-  doc.setFontSize(11);
-  doc.setFont(undefined, "bold");
-  doc.setTextColor(255, 0, 0); // Set color to red for "DEBIT"
-  doc.text("DEBIT ", pageWidth - 45, 12 + yOffset);
-  doc.setTextColor(0, 0, 0); // Set color to black for "NOTE"
-  doc.text(" NOTE", pageWidth - 45 + 13, 12 + yOffset); // Position "NOTE" after "DEBIT"
-
-  // Left side fields - dynamic content
-  doc.setFontSize(7);
-
-  // Add:
-  doc.setFont(undefined, "bold");
-  doc.text("Add:", 20, 22 + yOffset);
-  doc.setFont(undefined, "normal");
-  const addressLines = doc.splitTextToSize(data.customer.address, 60); // Wrap address to 60mm width
-  doc.text(addressLines, 35, 22 + yOffset); // Adjust X-coordinate for address content
-  let currentYPosition =
-    22 +
-    yOffset +
-    (addressLines.length * doc.getLineHeight()) / doc.internal.scaleFactor; // Calculate Y after address
-
-  // GSTIN
-  doc.setFont(undefined, "bold");
-  doc.text("GSTIN:", 20, currentYPosition + 2);
-  doc.setFont(undefined, "normal");
-  doc.text(data.customer.gstin, 35, currentYPosition + 2);
-  currentYPosition += 2; // Move Y down for GSTIN line
-
-  // PAN
-  doc.setFont(undefined, "bold");
-  doc.text("PAN:", 70, currentYPosition); // Adjusted X for PAN
-  doc.setFont(undefined, "normal");
-  doc.text(data.customer.pan, 80, currentYPosition); // Adjusted X for PAN content
-  // currentYPosition doesn't change here as it's on the same line as GSTIN
-
-  // EMAIL
-  doc.setFont(undefined, "bold");
-  doc.text("EMAIL:", 20, currentYPosition + 5);
-  doc.setFont(undefined, "normal");
-  doc.text(data.customer.email || "N/A", 35, currentYPosition + 5); // Use N/A if email is not available
-  currentYPosition += 5; // Move Y down for EMAIL line
-
-  // MOB
-  doc.setFont(undefined, "bold");
-  doc.text("MOB:", 70, currentYPosition); // Adjusted X for MOB
-  doc.setFont(undefined, "normal");
-  doc.text(data.customer.mobile || "N/A", 80, currentYPosition); // Use N/A if mobile is not available
-  // currentYPosition doesn't change here as it's on the same line as EMAIL
-
-  // Right side fields
-  doc.setFont(undefined, "bold");
-  doc.text("INVOICE NO :", pageWidth - 60, 22 + yOffset);
-  doc.text("DATE :", pageWidth - 60, 27 + yOffset);
-  doc.setFont(undefined, "normal");
-
-  // To section - dynamic content using new component
-  const jubilantDetailsFinalY = JubilantDetails({
-    doc,
-    customerAddress: data.customer.address,
-    startY: currentYPosition + 5, // Dynamically set startY with padding
+  doc.text(data.customer.customerName, pageWidth / 2, currentYPosition, {
+    align: "center",
   });
+  currentYPosition += 10; // Increased spacing between customer name and address
 
-  // Service description on right side - compact
-  const serviceDescriptionStartY = jubilantDetailsFinalY + 5; // Start below JubilantDetails
+  doc.setFont(undefined, "bold"); // Set font to bold for address
+  const customerAddressLines = doc.splitTextToSize(data.customer.address, 150); // Increased width for centering
+  const addressWithLabel = ["ADDRESS:", ...customerAddressLines]; // Add "ADDRESS:" label
 
-  let serviceDescriptionLines: string[] = [];
+  addressWithLabel.forEach((line) => {
+    doc.text(line, pageWidth / 2, currentYPosition, {
+      align: "center",
+    });
+    currentYPosition += 4.5; // Increased spacing for each line
+  });
+  // currentYPosition += customerAddressLines.length * 4.5; // This line is no longer needed as spacing is handled in the loop
+
+  // GSTIN, PAN, MOB - Centered and condensed
+  doc.setFont(undefined, "bold");
+  const gstinPanMobText = `GSTIN: ${data.customer.gstin}   PAN: ${
+    data.customer.pan
+  }   MOB: ${data.customer.mobile || "N/A"}`;
+  doc.text(gstinPanMobText, pageWidth / 2, currentYPosition + 2, {
+    align: "center",
+  });
+  currentYPosition += 15; // Increased spacing between customer details and "To:"
+
+  // To: Section (Sender Details - Jubilant) - Left Aligned for all types
+  doc.setFontSize(11); // Increased font size
+  doc.setFont(undefined, "bold");
+  doc.text("To:", 20, currentYPosition);
+  currentYPosition += 7; // Increased spacing
+
+  // Dynamically determine Jubilant address based on customer state
+  const jubilantLocations: {
+    [key: string]: { address: string[]; gstin: string };
+  } = {
+    "Uttar Pradesh": {
+      address: [
+        "ADD:- NH-24, JUBILANT AGRI AND CONSUMER PRODUCTS LIMITED UNIT-I,",
+        "BHARTIAGRAM, GAJRAULA, Amroha, Uttar Pradesh, 244223",
+      ],
+      gstin: "09AADCC4657M1Z7",
+    },
+    Bihar: {
+      address: [
+        "ADD:- Word No.61, Khata No.402, Birua Chak, Ranipur Khidki, Patna, Patna, Bihar, 800008",
+      ],
+      gstin: "10AADCC4657M1ZO",
+    },
+    Punjab: {
+      address: [
+        "ADD:- Ground, Khasra no 730,31,32,33,708,722,723, Vlogis Warehouse, Zirakpur Patiala Highway, Nabha, Mohali, SAS Nagar, Punjab, 140603",
+      ],
+      gstin: "03AADCC4657M1ZJ",
+    },
+    "Madhya Pradesh": {
+      address: [
+        "ADD:- Ground Floor, 29/3,, Talavali Chanda, Indore, Indore, Madhya Pradesh, 452010",
+      ],
+      gstin: "23AADCC4657M1ZH",
+    },
+    Haryana: {
+      address: [
+        "ADD:- 3rd, 142, Chimes 142, Sector 44 Road, Sector 44, Gurugram, Gurugram, Haryana, 122003",
+      ],
+      gstin: "06AADCC4657M1ZD",
+    },
+    Rajasthan: {
+      address: [
+        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
+      ],
+      gstin: "08AADCC4657M1Z9",
+    },
+    Maharashtra: {
+      address: [
+        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
+      ],
+      gstin: "08AADCC4657M1Z9",
+    },
+    Gujarat: {
+      address: [
+        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
+      ],
+      gstin: "08AADCC4657M1Z9",
+    },
+    Chhattisgarh: {
+      address: [
+        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
+      ],
+      gstin: "08AADCC4657M1Z9",
+    },
+    Uttarakhand: {
+      address: [
+        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
+      ],
+      gstin: "08AADCC4657M1Z9",
+    },
+  };
+
+  const jubilantInfo =
+    jubilantLocations[customerState] || jubilantLocations["Uttar Pradesh"]; // Fallback to UP
+
+  doc.setFont(undefined, "normal");
+  doc.text("The Sales Head", 20, currentYPosition);
+  currentYPosition += 5;
+  doc.text("JUBILANT AGRI AND CONSUMER PRODUCTS LIMITED", 20, currentYPosition);
+  currentYPosition += 5;
+  jubilantInfo.address.forEach((line) => {
+    doc.text(line, 20, currentYPosition);
+    currentYPosition += 4.5; // Adjusted spacing
+  });
+  doc.setFont(undefined, "bold"); // Make GSTIN bold
+  doc.text(`GSTIN : ${jubilantInfo.gstin}`, 20, currentYPosition);
+  currentYPosition += 7; // Adjusted spacing
+
+  // Subject
+  doc.setFontSize(11); // Increased font size
+  doc.setFont(undefined, "normal");
+  let subjectText = "";
   if (invoiceType === "godown") {
-    serviceDescriptionLines = doc.splitTextToSize(
-      `Rental or Leasing services involving own or leased non - residential property for ${customerState}`,
-      50 // Adjust width as needed for the right side
-    );
+    subjectText = "Subject: Reimbursement of Rent Expenses";
   } else if (invoiceType === "main") {
-    serviceDescriptionLines = doc.splitTextToSize(
-      "Clearing & Forwording Charges",
-      50
-    );
+    subjectText = "Subject: Reimbursement of Handling Expenses.";
   } else if (invoiceType === "freight") {
-    serviceDescriptionLines = [""]; // Leave blank as requested
+    subjectText = "Subject: Reimbursement of Secondary Freight.";
   }
+  doc.text(subjectText, 20, currentYPosition + 7); // Increased spacing
+  currentYPosition += 16; // Increased spacing
 
-  serviceDescriptionLines.forEach((line, index) => {
-    doc.text(line, pageWidth - 80, serviceDescriptionStartY + index * 4);
-  });
+  // Dear Sir
+  doc.setFontSize(11); // Increased font size
+  doc.setFont(undefined, "normal");
+  doc.text("Dear Sir", 20, currentYPosition);
+  currentYPosition += 12; // Increased spacing
+
+  // Introductory Text
+  let introductoryText = "";
+  if (invoiceType === "godown") {
+    introductoryText =
+      "Requested to kindly reimburse the Godown Rent Expenses as per details given as under:";
+  } else if (invoiceType === "main") {
+    introductoryText =
+      "Requested to kindly reimburse me the Handling Expenses as per details given as under:";
+  } else if (invoiceType === "freight") {
+    introductoryText =
+      "Requested to kindly reimburse me the Secondary Freight Expenses as per details given as below:";
+  }
+  doc.text(introductoryText, 20, currentYPosition);
+  currentYPosition += 12; // Increased spacing
 
   let serviceRows: any[] = [];
   let totalAmountBeforeTax = 0;
@@ -115,201 +181,107 @@ export const generateDebitNotePDF = (
   switch (invoiceType) {
     case "godown":
       serviceRows.push([
-        "Rental or Leasing services involving own or leased non - residential property",
-        "997212", // HSN/SAC for Rental or Leasing services
-        formatNumber(data.godownRent / 100), // Calculated Quantity
-        formatNumber(100), // Rate
-        formatNumber(data.godownRent), // Amount
+        "REIMBURSEMENT OF RENT EXPENSES", // Particulars
+        formatNumber(data.godownRent / 100), // Qty in MT (dynamic)
+        formatNumber(100), // Rate/MT (dynamic)
+        formatNumber(data.godownRent), // Amt. In Ru. (dynamic)
       ]);
       totalAmountBeforeTax = data.godownRent;
       break;
     case "main":
-      serviceRows.push(
-        [
-          "Loading Charges",
-          "996519", // HSN/SAC for Loading/Unloading services
-          formatNumber(data.loadingCharges / 75), // Calculated Quantity
-          "75.00", // Rate from Excel header
-          formatNumber(data.loadingCharges), // Amount
-        ],
-        [
-          "Unloading Charges",
-          "996519", // HSN/SAC for Loading/Unloading services
-          formatNumber(data.unloadingCharges / 75), // Calculated Quantity
-          "75.00", // Rate from Excel header
-          formatNumber(data.unloadingCharges), // Amount
-        ],
-        [
-          "Local Transportation",
-          "996713", // HSN/SAC for Local Transportation services
-          formatNumber(data.localTransportation / 200), // Calculated Quantity
-          "200.00", // Rate from Excel header
-          formatNumber(data.localTransportation), // Amount
-        ]
-      );
+      const mainParticularsText =
+        "REIMBURSEMENT OF LOADING, UNLOADING & local Transportation";
+      const wrappedMainParticulars = doc.splitTextToSize(
+        mainParticularsText,
+        85
+      ); // Wrap text to 85 units width
+
+      // Push the first line with all data
+      serviceRows.push([
+        wrappedMainParticulars[0], // First line of particulars
+        formatNumber(
+          data.loadingCharges / 75 +
+            data.unloadingCharges / 75 +
+            data.localTransportation / 200
+        ), // Calculated Quantity
+        "NA", // Rate from Excel header
+        formatNumber(
+          data.loadingCharges + data.unloadingCharges + data.localTransportation
+        ), // Amount
+      ]);
+
+      // Push subsequent lines of particulars without other data
+      for (let i = 1; i < wrappedMainParticulars.length; i++) {
+        serviceRows.push([wrappedMainParticulars[i], "", "", ""]); // Empty strings for other columns
+      }
+
       totalAmountBeforeTax =
         data.loadingCharges + data.unloadingCharges + data.localTransportation;
       break;
     case "freight":
       serviceRows.push([
-        "Secondary Freight",
-        "996511", // HSN/SAC for Secondary Freight services
+        "REIMBURSEMENT OF FREIGHT EXPENSES", // Particulars
+        formatNumber(data.freightBalance / 1000), // Qty in MT (dynamic)
+        "NA", // Rate from Excel header
         formatNumber(data.freightBalance), // This is now the Amount column
       ]);
       totalAmountBeforeTax = data.freightBalance;
       break;
   }
 
-  const interStateStates = [
-    "Maharashtra",
-    "Gujarat",
-    "Chhattisgarh",
-    "Uttarakhand",
-  ];
-  const isInterState = interStateStates.includes(customerState);
+  let totalAmount = totalAmountBeforeTax;
 
-  let cgst = 0;
-  let sgst = 0;
-  let igst = 0;
-  let totalAmount = 0;
+  // Manual positioning of data
+  currentYPosition += 8; // Increased space before data section
 
-  // Define table head and column styles dynamically
-  let tableHead: string[][] = [];
-  let tableColumnStyles: any = {};
+  doc.setFontSize(10); // Increased font size for data section
+  doc.setFont(undefined, "bold");
 
-  if (invoiceType === "freight") {
-    tableHead = [["Service Description", "HSN / SAC", "Amount"]];
-    tableColumnStyles = {
-      0: { halign: "left", cellWidth: 118 }, // Service Description
-      1: { halign: "center", cellWidth: 22 }, // HSN / SAC
-      2: { halign: "right", cellWidth: 30 }, // Amount
-    };
-  } else {
-    tableHead = [["Service Description", "HSN / SAC", "Qty", "Rate", "Amount"]];
-    tableColumnStyles = {
-      0: { halign: "left", cellWidth: 70 },
-      1: { halign: "center", cellWidth: 22 },
-      2: { halign: "center", cellWidth: 18 },
-      3: { halign: "right", cellWidth: 30 },
-      4: { halign: "right", cellWidth: 30 },
-    };
-  }
+  // Headers
+  doc.text("Particulars", 20, currentYPosition);
+  // Reverting freight specific columns to match other types
+  doc.text("Qty in MT", 110, currentYPosition, { align: "center" });
+  doc.text("Rate/MT", 140, currentYPosition, { align: "center" });
+  doc.text("Amt. In Ru.", 180, currentYPosition, { align: "right" });
+  currentYPosition += 6; // Increased spacing
 
-  let taxRows: any[] = [];
-  const emptyCellsCount = tableHead[0].length - 2; // Number of empty cells before "TOTAL" and "Amount"
+  doc.setFont(undefined, "normal");
 
-  if (isInterState) {
-    igst = totalAmountBeforeTax * 0.18; // 18% IGST
-    totalAmount = totalAmountBeforeTax + igst;
-    taxRows = [
-      ["IGST @ 18%", ...Array(emptyCellsCount).fill(""), formatNumber(igst)],
-    ];
-  } else {
-    cgst = totalAmountBeforeTax * 0.09; // 9% CGST
-    sgst = totalAmountBeforeTax * 0.09; // 9% SGST
-    totalAmount = totalAmountBeforeTax + cgst + sgst;
-    taxRows = [
-      ["CGST @ 9%", ...Array(emptyCellsCount).fill(""), formatNumber(cgst)],
-      ["SGST @ 9%", ...Array(emptyCellsCount).fill(""), formatNumber(sgst)],
-    ];
-  }
+  // Service Rows
+  serviceRows.forEach((row) => {
+    doc.text(row[0], 20, currentYPosition); // Always print particulars
 
-  if (invoiceType === "freight") {
-    tableHead = [["Service Description", "HSN / SAC", "Amount"]];
-    tableColumnStyles = {
-      0: { halign: "left", cellWidth: 118 }, // Service Description
-      1: { halign: "center", cellWidth: 22 }, // HSN / SAC
-      2: { halign: "right", cellWidth: 30 }, // Amount
-    };
-  } else {
-    tableHead = [["Service Description", "HSN / SAC", "Qty", "Rate", "Amount"]];
-    tableColumnStyles = {
-      0: { halign: "left", cellWidth: 70 },
-      1: { halign: "center", cellWidth: 22 },
-      2: { halign: "center", cellWidth: 18 },
-      3: { halign: "right", cellWidth: 30 },
-      4: { halign: "right", cellWidth: 30 },
-    };
-  }
-
-  // Combined service and tax table
-  autoTable(doc, {
-    startY: serviceDescriptionStartY + 20, // Dynamically set table start below service description
-    head: tableHead,
-    body: [
-      ...serviceRows,
-      ["", "", "", "", ""].slice(0, tableHead[0].length), // Empty row for spacing, adjusted for column count
-      ...taxRows, // Dynamically add tax rows
-      [
-        {
-          content: `Rupees: ${convertNumberToIndianWords(totalAmount)}`,
-          colSpan: tableHead[0].length - 2,
-        },
-        "TOTAL",
-        formatNumber(totalAmount),
-      ],
-    ],
-    styles: {
-      fontSize: 7,
-      cellPadding: 1.5,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.3,
-      fontStyle: "bold", // Apply bold to all body cells by default
-      textColor: 0, // Set text color to black (RGB 0,0,0)
-    },
-    headStyles: {
-      fillColor: [255, 255, 255],
-      textColor: 0,
-      fontStyle: "bold",
-      halign: "center",
-      fontSize: 7,
-    },
-    columnStyles: tableColumnStyles,
-    margin: { left: 20, right: 20 },
-    theme: "grid", // Changed to 'grid' for full borders
-    tableLineColor: [0, 0, 0],
-    tableLineWidth: 0.3,
-    didParseCell: function (data) {
-      if (data.section === "body") {
-        // Empty row for spacing between service and tax rows
-        const emptyRowIndex = serviceRows.length;
-        if (data.row.index === emptyRowIndex) {
-          data.cell.styles.minCellHeight = 80; // Increased value for a larger gap
-        }
-
-        // The 'TOTAL' text and amount are now in the row after the empty spacing row.
-        const totalRowIndex = serviceRows.length + taxRows.length + 1; // +1 for the single empty row
-        if (data.row.index === totalRowIndex) {
-          // Adjust column index check based on the number of columns
-          if (invoiceType === "freight") {
-            if (data.column.index === 1 || data.column.index === 2) {
-              // "TOTAL" is index 1, Amount is index 2
-              data.cell.styles.fontStyle = "bold";
-            }
-          } else {
-            if (data.column.index === 3 || data.column.index === 4) {
-              data.cell.styles.fontStyle = "bold";
-            }
-          }
-        }
+    // Only print other columns if they are not empty (i.e., it's the first line of a wrapped item)
+    if (row[1] !== "") {
+      if (invoiceType === "freight") {
+        doc.text(row[1], 110, currentYPosition, { align: "center" }); // Qty in MT
+        doc.text("NA", 140, currentYPosition, { align: "center" }); // Rate/MT
+        doc.text(row[3], 180, currentYPosition, { align: "right" }); // Amt. In Ru. (Corrected index from row[2] to row[3])
+      } else {
+        doc.text(row[1], 110, currentYPosition, { align: "center" });
+        doc.text(row[2], 140, currentYPosition, { align: "center" });
+        doc.text(row[3], 180, currentYPosition, { align: "right" });
       }
-    },
+    }
+    currentYPosition += 6; // Increased spacing
   });
 
-  // TAX PAYABLE UNDER REVERSE CHARGE : NO
-  const finalY = (doc as any).lastAutoTable.finalY + 8;
-  doc.setFontSize(7);
+  // Total Row
+  currentYPosition += 4; // Increased gap before total
   doc.setFont(undefined, "bold");
-  doc.setTextColor(255, 0, 0);
-  doc.text("TAX PAYABLE UNDER REVERSE CHARGE : NO", 20, finalY);
-  doc.setTextColor(0, 0, 0);
+  doc.text("Total", 20, currentYPosition);
+  doc.text(formatNumber(totalAmount), 180, currentYPosition, {
+    align: "right",
+  });
+  currentYPosition += 6; // Increased spacing
 
-  // SIGNATURE/ DIGITAL SIGNATURE/
-  doc.setFontSize(7);
-  doc.setFont(undefined, "bold");
-  doc.setTextColor(255, 0, 0);
-  doc.text("SIGNATURE/ DIGITAL SIGNATURE", pageWidth - 50, finalY + 10);
-  doc.setTextColor(0, 0, 0);
+  // Footer Section
+  const finalY = currentYPosition + 10; // Increased space before footer
+  doc.setFontSize(10); // Increased font size for footer
+  doc.setFont(undefined, "normal");
+  doc.text("Thanking You", 20, finalY);
+  doc.text("Yours Faithfully", 20, finalY + 6); // Increased spacing
+  doc.text("Authorised Signatory", 20, finalY + 18); // Increased spacing
 
   return doc.output("blob");
 };
