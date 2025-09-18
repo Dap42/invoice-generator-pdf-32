@@ -145,9 +145,9 @@ export const InvoiceDataParser = ({
                             h?.toLowerCase().includes("loading") ||
                             h?.toLowerCase().includes("transport")
                         )
-                      ] || 50000
+                      ] || 0
                     )
-                  ) || 50000;
+                  ) || 0;
 
                 const loadingCharges =
                   parseFloat(
