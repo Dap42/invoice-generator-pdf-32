@@ -27,20 +27,25 @@ const Index = () => {
     if (customers.length === 0 || invoices.length === 0) return;
 
     const merged = invoices.map(invoice => {
-      const customer = customers.find(c => 
-        c.customerName.toLowerCase().trim() === invoice.customerName.toLowerCase().trim() ||
-        (c.sapCode && invoice.sapCode && c.sapCode === invoice.sapCode)
+      const customer = customers.find(c =>
+        c.customerName.toLowerCase() === invoice.customerNameForMatching
       );
-      
+
+      const customerDetails: CustomerData = customer ? {
+        ...customer,
+        district: customer.district || invoice.district
+      } : {
+        sapCode: invoice.sapCode || `SAP${invoice.customerNameForMatching.substring(0, 3)}`,
+        customerName: invoice.customerName,
+        address: 'Address not found',
+        gstin: 'GSTIN not found',
+        pan: 'PAN not found',
+        district: invoice.district || 'Unknown District'
+      };
+
       return {
         ...invoice,
-        customer: customer || {
-          sapCode: invoice.sapCode,
-          customerName: invoice.customerName,
-          address: 'Address not found',
-          gstin: 'GSTIN not found',
-          pan: 'PAN not found'
-        }
+        customer: customerDetails,
       };
     });
 

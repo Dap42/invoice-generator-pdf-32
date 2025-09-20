@@ -1,7 +1,6 @@
 import * as XLSX from "xlsx";
 import type { InvoiceData } from "@/types/invoice";
 import { useToast } from "@/hooks/use-toast";
-import { aggregateColumnByParty } from "@/lib/excel-data-processor";
 
 interface InvoiceDataParserProps {
   onInvoiceDataParsed: (data: InvoiceData[]) => void;
@@ -25,273 +24,120 @@ export const InvoiceDataParser = ({
         const sheetNames = workbook.SheetNames;
         console.log("Available Sheet Names:", sheetNames);
 
-        let pivotSheet: XLSX.WorkSheet | undefined;
-        let monthlySheet: XLSX.WorkSheet | undefined;
-        let monthlySheetName: string | undefined;
+        const pivotSheetName = "Pivot.";
+        const pivotSheet = workbook.Sheets[pivotSheetName];
 
-        // 1. Get "Pivot." sheet
-        if (workbook.Sheets["Pivot."]) {
-          pivotSheet = workbook.Sheets["Pivot."];
-          console.log("Found 'Pivot.' sheet.");
-        } else {
-          console.warn("Pivot. sheet not found.");
+        if (!pivotSheet) {
+          throw new Error(
+            `The required sheet "${pivotSheetName}" was not found in the Excel file.`
+          );
         }
+        console.log(`Processing sheet: ${pivotSheetName}`);
 
-        // 2. Get monthly "Dis-MMM-YY" sheet
-        const disMonthYearRegex = /^dis-[a-z]{3}-\d{2}$/i; // e.g., "Dis-Apr-25"
-        const foundMonthlySheetName = sheetNames.find((name) =>
-          disMonthYearRegex.test(name)
+        const pivotJsonData = XLSX.utils.sheet_to_json(pivotSheet, {
+          header: 1,
+        });
+
+        const pivotHeaderRowIndex = pivotJsonData.findIndex((row: any) =>
+          row.some(
+            (cell: any) =>
+              typeof cell === "string" &&
+              (cell.toLowerCase().includes("bill") ||
+                cell.toLowerCase().includes("party") ||
+                cell.toLowerCase().includes("amount") ||
+                cell.toLowerCase().includes("quantity") ||
+                cell.toLowerCase().includes("rent") ||
+                cell.toLowerCase().includes("freight"))
+          )
         );
 
-        if (foundMonthlySheetName && workbook.Sheets[foundMonthlySheetName]) {
-          monthlySheet = workbook.Sheets[foundMonthlySheetName];
-          monthlySheetName = foundMonthlySheetName;
-          console.log(`Found monthly sheet: ${monthlySheetName}`);
-        } else {
-          console.warn("No monthly 'Dis-MMM-YY' sheet found.");
-        }
-
-        if (!pivotSheet && !monthlySheet) {
+        if (pivotHeaderRowIndex === -1) {
           throw new Error(
-            "Could not find any suitable invoice data sheets in the Excel file (neither 'Pivot.' nor 'Dis-MMM-YY')."
+            "Could not automatically detect the header row in the 'Pivot.' sheet. Please ensure it contains recognizable headers like 'Bill To Party Name', 'Sum of Total QTY Lifted', 'Godown Rent @ Rs. 100/mt', 'Loading', 'Unloading', 'Local Transportation', 'Sum of Balance to be given as Secondary Frt.'."
           );
         }
 
-        // Process Pivot. sheet for main invoice data
-        let invoiceData: InvoiceData[] = [];
-        if (pivotSheet) {
-          const pivotJsonData = XLSX.utils.sheet_to_json(pivotSheet, {
-            header: 1,
-          });
-          console.log("Processing sheet: Pivot.");
+        const pivotHeaders = pivotJsonData[pivotHeaderRowIndex] as string[];
+        console.log("Detected Headers (Pivot.):", pivotHeaders);
+        const pivotDataRows = pivotJsonData.slice(
+          pivotHeaderRowIndex + 1
+        ) as any[][];
 
-          const pivotHeaderRowIndex = pivotJsonData.findIndex((row: any) =>
+        const invoiceData: InvoiceData[] = pivotDataRows
+          .filter((row) =>
             row.some(
-              (cell: any) =>
-                typeof cell === "string" &&
-                (cell.toLowerCase().includes("bill") ||
-                  cell.toLowerCase().includes("party") ||
-                  cell.toLowerCase().includes("amount"))
+              (cell) => cell !== null && cell !== undefined && cell !== ""
             )
-          );
-
-          if (pivotHeaderRowIndex === -1) {
-            console.warn(
-              "Could not find header row in Pivot. sheet. Skipping main invoice data extraction."
-            );
-          } else {
-            const pivotHeaders = pivotJsonData[pivotHeaderRowIndex] as string[];
-            console.log("Detected Headers (Pivot.):", pivotHeaders);
-            const pivotDataRows = pivotJsonData.slice(
-              pivotHeaderRowIndex + 1
-            ) as any[][];
-
-            invoiceData = pivotDataRows
-              .filter((row) =>
-                row.some(
-                  (cell) => cell !== null && cell !== undefined && cell !== ""
+          )
+          .map((row, index) => {
+            const findColIndex = (keywords: string[]): number => {
+              return pivotHeaders.findIndex((h) =>
+                h && typeof h === 'string' && keywords.some(keyword =>
+                  h.toLowerCase().includes(keyword.toLowerCase())
                 )
-              )
-              .map((row, index) => {
-                const customerName = String(
-                  row[
-                    pivotHeaders.findIndex(
-                      (h) =>
-                        h?.toLowerCase().includes("bill") &&
-                        h?.toLowerCase().includes("party")
-                    )
-                  ] ||
-                    row[
-                      pivotHeaders.findIndex((h) =>
-                        h?.toLowerCase().includes("customer")
-                      )
-                    ] ||
-                    ""
-                )
-                  .trim()
-                  .toLowerCase();
-
-                const quantityLifted =
-                  parseFloat(
-                    String(
-                      row[
-                        pivotHeaders.findIndex(
-                          (h) =>
-                            h?.toLowerCase().includes("quantity") ||
-                            h?.toLowerCase().includes("lifted")
-                        )
-                      ] || 500
-                    )
-                  ) || 500;
-                const godownRent =
-                  parseFloat(
-                    String(
-                      row[
-                        pivotHeaders.findIndex(
-                          (h) =>
-                            h?.toLowerCase().includes("godown") ||
-                            h?.toLowerCase().includes("rent")
-                        )
-                      ] || quantityLifted * 100
-                    )
-                  ) || quantityLifted * 100;
-                const mainBillAmount =
-                  parseFloat(
-                    String(
-                      row[
-                        pivotHeaders.findIndex(
-                          (h) =>
-                            h?.toLowerCase().includes("main") ||
-                            h?.toLowerCase().includes("loading") ||
-                            h?.toLowerCase().includes("transport")
-                        )
-                      ] || 0
-                    )
-                  ) || 0;
-
-                const loadingCharges =
-                  parseFloat(
-                    String(
-                      row[
-                        pivotHeaders.findIndex((h) =>
-                          h?.toLowerCase().includes("loading")
-                        )
-                      ] || 0
-                    )
-                  ) || 0;
-                const unloadingCharges =
-                  parseFloat(
-                    String(
-                      row[
-                        pivotHeaders.findIndex((h) =>
-                          h?.toLowerCase().includes("unloading")
-                        )
-                      ] || 0
-                    )
-                  ) || 0;
-                const localTransportation =
-                  parseFloat(
-                    String(
-                      row[
-                        pivotHeaders.findIndex(
-                          (h) =>
-                            h?.toLowerCase().includes("local") &&
-                            h?.toLowerCase().includes("transportation")
-                        )
-                      ] || 0
-                    )
-                  ) || 0;
-
-                return {
-                  sapCode: String(
-                    row[
-                      pivotHeaders.findIndex((h) =>
-                        h?.toLowerCase().includes("sap")
-                      )
-                    ] || `SAP${index.toString().padStart(3, "0")}`
-                  ).trim(),
-                  customerName: String(
-                    row[
-                      pivotHeaders.findIndex(
-                        (h) =>
-                          h?.toLowerCase().includes("bill") &&
-                          h?.toLowerCase().includes("party")
-                      )
-                    ] ||
-                      row[
-                        pivotHeaders.findIndex((h) =>
-                          h?.toLowerCase().includes("customer")
-                        )
-                      ] ||
-                      ""
-                  ).trim(),
-                  district: String(
-                    row[
-                      pivotHeaders.findIndex(
-                        (h) =>
-                          h?.toLowerCase().includes("district") ||
-                          h?.toLowerCase().includes("location")
-                      )
-                    ] || "Unknown District"
-                  ).trim(),
-                  quantityLifted,
-                  godownRent,
-                  mainBillAmount,
-                  freightBalance: 0,
-                  loadingCharges,
-                  unloadingCharges,
-                  localTransportation,
-                  totalValue: godownRent + mainBillAmount,
-                };
-              });
-          }
-        }
-
-        // Process monthly sheet for secondary freight
-        if (monthlySheet && monthlySheetName) {
-          const monthlyJsonData = XLSX.utils.sheet_to_json(monthlySheet, {
-            header: 1,
-          });
-          console.log("Processing sheet:", monthlySheetName);
-
-          const monthlyHeaderRowIndex = monthlyJsonData.findIndex((row: any) =>
-            row.some(
-              (cell: any) =>
-                typeof cell === "string" &&
-                (cell.toLowerCase().includes("bill") ||
-                  cell.toLowerCase().includes("party") ||
-                  cell.toLowerCase().includes("amount"))
-            )
-          );
-
-          if (monthlyHeaderRowIndex === -1) {
-            console.warn(
-              `Could not find header row in ${monthlySheetName} sheet. Skipping secondary freight extraction.`
-            );
-          } else {
-            const aggregatedSecondaryFreight = aggregateColumnByParty(
-              monthlyJsonData as any[][],
-              monthlyHeaderRowIndex,
-              "Total Discount"
-            );
-            console.log(
-              "Aggregated Secondary Freight Map (from monthly sheet):",
-              aggregatedSecondaryFreight
-            );
-
-            // Merge secondary freight into existing invoiceData
-            invoiceData = invoiceData.map((invoice) => {
-              const freightBalance =
-                aggregatedSecondaryFreight.get(
-                  invoice.customerName.toLowerCase()
-                ) || 0;
-              console.log(
-                `Customer: ${invoice.customerName}, Aggregated freightBalance from monthly sheet: ${freightBalance}`
               );
-              return {
-                ...invoice,
-                freightBalance,
-                totalValue: invoice.totalValue + freightBalance,
-              };
-            });
-          }
-        }
+            };
 
-        // Filter out invoices with no customer name after all processing
-        invoiceData = invoiceData.filter(
+            const billToPartyNameColIndex = findColIndex(["bill to party name", "customer name"]);
+            const districtColIndex = findColIndex(["district", "location", "region"]);
+            const quantityLiftedColIndex = findColIndex(["sum of total qty lifted", "quantity lifted", "quantity"]);
+            const godownRentColIndex = findColIndex(["godown rent @ rs. 100/mt", "godown rent", "godown", "rent"]);
+            const loadingChargesColIndex = findColIndex(["loading", "loading charges"]);
+            const unloadingChargesColIndex = findColIndex(["unloading", "unloading charges"]);
+            const localTransportationColIndex = findColIndex(["local transportation", "local transport"]);
+            const freightBalanceColIndex = findColIndex(["sum of balance to be given as secondary frt.", "secondary frt.", "freight balance", "freight"]);
+
+            const rawCustomerName = String(row[billToPartyNameColIndex] || "").trim();
+            const customerNameForDisplay = rawCustomerName;
+            const customerNameForMatching = rawCustomerName.toLowerCase();
+
+            const quantityLiftedValue = parseFloat(String(row[quantityLiftedColIndex]));
+            const quantityLifted = !isNaN(quantityLiftedValue) ? quantityLiftedValue : 0;
+
+            const godownRentValue = parseFloat(String(row[godownRentColIndex]));
+            const godownRent = !isNaN(godownRentValue) ? godownRentValue : 0;
+
+            const loading = parseFloat(String(row[loadingChargesColIndex])) || 0;
+            const unloading = parseFloat(String(row[unloadingChargesColIndex])) || 0;
+            const localTransportation = parseFloat(String(row[localTransportationColIndex])) || 0;
+            const mainBillAmount = loading + unloading + localTransportation;
+
+            const freightBalance = parseFloat(String(row[freightBalanceColIndex])) || 0;
+
+            const calculatedTotalValue = godownRent + mainBillAmount + freightBalance;
+
+            return {
+              sapCode: String(
+                row[findColIndex(["sap code", "sap"])] || `SAP${index.toString().padStart(3, "0")}`
+              ).trim(),
+              customerName: customerNameForDisplay,
+              customerNameForMatching: customerNameForMatching,
+              district: String(row[districtColIndex] || "Unknown District").trim(),
+              quantityLifted,
+              godownRent,
+              mainBillAmount: mainBillAmount,
+              freightBalance,
+              loadingCharges: loading,
+              unloadingCharges: unloading,
+              localTransportation: localTransportation,
+              totalValue: calculatedTotalValue,
+            };
+          });
+
+        const filteredInvoiceData = invoiceData.filter(
           (invoice) => invoice.customerName && invoice.customerName !== ""
         );
 
-        onInvoiceDataParsed(invoiceData);
+        onInvoiceDataParsed(filteredInvoiceData);
         toast({
           title: "Invoice Data Parsed Successfully",
-          description: `Found ${invoiceData.length} invoice records`,
+          description: `Found ${filteredInvoiceData.length} invoice records from the Pivot sheet.`,
         });
       } catch (error) {
         console.error("Error parsing invoice data:", error);
         toast({
           title: "Error",
-          description: "Failed to parse Invoice file. Please check the format.",
+          description: `Failed to parse Invoice file. Please ensure the 'Pivot.' sheet exists and has the correct headers. Error: ${error.message}`,
           variant: "destructive",
         });
       } finally {

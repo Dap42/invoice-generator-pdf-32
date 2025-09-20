@@ -1,29 +1,26 @@
 export interface CustomerData {
   sapCode: string;
   customerName: string;
-  gstin: string;
-  pan: string;
-  address: string;
+  gstin?: string; // Optional GSTIN
+  pan?: string;   // Optional PAN
+  address?: string; // Optional Address
   email?: string; // Added email field
   mobile?: string; // Added mobile field
 }
 
 export interface InvoiceData {
   sapCode: string;
-  customerName: string;
+  customerName: string; // Original case for display
+  customerNameForMatching: string; // Lowercase for internal matching
   district: string;
   quantityLifted: number;
   godownRent: number;
-  mainBillAmount: number;
-  freightBalance: number;
-  loadingCharges: number;
-  unloadingCharges: number;
-  localTransportation: number;
-  totalValue: number;
-}
-
-export interface MergedInvoiceData extends InvoiceData {
-  customer: CustomerData;
+  mainBillAmount: number; // This will now include loading, unloading, and local transportation
+  freightBalance: number; // Secondary Freight
+  loadingCharges: number; // Kept for potential detailed breakdown, but consolidated in mainBillAmount for totalValue
+  unloadingCharges: number; // Kept for potential detailed breakdown, but consolidated in mainBillAmount for totalValue
+  localTransportation: number; // Kept for potential detailed breakdown, but consolidated in mainBillAmount for totalValue
+  totalValue: number; // Sum of godownRent, mainBillAmount, and freightBalance
 }
 
 export interface Invoice {
