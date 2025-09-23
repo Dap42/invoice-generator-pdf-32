@@ -2,7 +2,7 @@ export interface CustomerData {
   sapCode: string;
   customerName: string;
   gstin?: string; // Optional GSTIN
-  pan?: string;   // Optional PAN
+  pan?: string; // Optional PAN
   address?: string; // Optional Address
   email?: string; // Added email field
   mobile?: string; // Added mobile field

@@ -147,7 +147,7 @@ export const FileUpload = ({
               <FileSpreadsheet className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <Label className="text-lg font-semibold">Apr Cases.xlsx</Label>
+              <Label className="text-lg font-semibold">Cases.xlsx</Label>
               <p className="text-sm text-muted-foreground mt-1">
                 Upload invoice data with amounts, quantities, taxes, freight
               </p>

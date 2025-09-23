@@ -50,9 +50,10 @@ export const generateDebitNotePDF = (
   });
   // GSTIN, PAN, MOB - Centered and condensed
   doc.setFont(undefined, "bold");
-  const gstinPanMobText = `GSTIN: ${data.customer.gstin}   PAN: ${
-    data.customer.pan
-  }   MOB: ${data.customer.mobile || "N/A"}`;
+  const mobileText = data.customer.mobile
+    ? `   MOB: ${data.customer.mobile}`
+    : "";
+  const gstinPanMobText = `GSTIN: ${data.customer.gstin}   PAN: ${data.customer.pan}${mobileText}`;
   doc.text(gstinPanMobText, pageWidth / 2, currentYPosition + 2, {
     align: "center",
   });
@@ -231,7 +232,7 @@ export const generateDebitNotePDF = (
     case "freight":
       serviceRows.push([
         "REIMBURSEMENT OF FREIGHT EXPENSES", // Particulars
-        formatNumber(data.freightBalance / 1000), // Qty in MT (dynamic)
+        "NA", // Qty in MT (dynamic)
         "NA", // Rate from Excel header
         formatNumber(data.freightBalance), // This is now the Amount column
       ]);
