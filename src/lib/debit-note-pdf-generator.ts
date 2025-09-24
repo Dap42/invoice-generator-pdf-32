@@ -201,7 +201,7 @@ export const generateDebitNotePDF = (
       break;
     case "main":
       const mainParticularsText =
-        "REIMBURSEMENT OF LOADING, UNLOADING & local Transportation";
+        "REIMBURSEMENT OF LOADING, UNLOADING & LOCAL TRANSPORTATION";
       const wrappedMainParticulars = doc.splitTextToSize(
         mainParticularsText,
         85
