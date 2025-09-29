@@ -13,6 +13,7 @@ export interface InvoiceData {
   customerName: string; // Original case for display
   customerNameForMatching: string; // Lowercase for internal matching
   district: string;
+  zone?: string; // Zone information for aggregation grouping
   quantityLifted: number;
   godownRent: number;
   mainBillAmount: number; // This will now include loading, unloading, and local transportation

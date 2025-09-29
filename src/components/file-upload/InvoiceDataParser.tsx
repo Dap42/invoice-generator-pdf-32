@@ -68,7 +68,33 @@ export const InvoiceDataParser = ({
           row.some((cell) => cell !== null && cell !== undefined && cell !== "")
         );
 
-        // Group rows by customer name + zone for aggregation
+        // UP Zone Detection Function
+        const isUPZone = (plantValue: string, zoneValue: string): boolean => {
+          const plant = (plantValue || "").toString().toLowerCase();
+          const zone = (zoneValue || "").toString().toLowerCase();
+
+          // Check PLANT column for UP indicators
+          if (
+            plant.includes("w.up") ||
+            plant.includes("e.up") ||
+            plant.includes("gajraula")
+          ) {
+            return true;
+          }
+
+          // Check Zone column for UP indicators
+          if (
+            zone.includes("westup") ||
+            zone.includes("east up") ||
+            zone.includes("potato belt")
+          ) {
+            return true;
+          }
+
+          return false;
+        };
+
+        // Group rows by customer name + UP/Non-UP classification for aggregation
         const aggregatedData = new Map<
           string,
           {
@@ -98,6 +124,7 @@ export const InvoiceDataParser = ({
             );
           };
 
+          const plantColIndex = 0; // First column is PLANT
           const zoneColIndex = findColIndex(["zone", "plant"]);
           const billToPartyNameColIndex = findColIndex([
             "bill to party name",
@@ -143,7 +170,8 @@ export const InvoiceDataParser = ({
           const rawCustomerName = String(
             row[billToPartyNameColIndex] || ""
           ).trim();
-          const zone = String(row[zoneColIndex] || "").trim();
+          const plantValue = String(row[plantColIndex] || "").trim();
+          const zoneValue = String(row[zoneColIndex] || "").trim();
           const district = String(
             row[districtColIndex] || "Unknown District"
           ).trim();
@@ -152,8 +180,12 @@ export const InvoiceDataParser = ({
           // Skip if no customer name
           if (!rawCustomerName || rawCustomerName === "") return;
 
-          // Create grouping key: customerName + zone
-          const groupKey = `${rawCustomerName.toLowerCase()}|${zone.toLowerCase()}`;
+          // Determine if this is UP zone
+          const isUp = isUPZone(plantValue, zoneValue);
+          const finalZone = isUp ? "UP" : zoneValue;
+
+          // Create grouping key: customerName + finalZone
+          const groupKey = `${rawCustomerName.toLowerCase()}|${finalZone.toLowerCase()}`;
 
           const quantityLiftedValue = parseFloat(
             String(row[quantityLiftedColIndex] || 0)
@@ -189,7 +221,7 @@ export const InvoiceDataParser = ({
           } else {
             aggregatedData.set(groupKey, {
               customerName: rawCustomerName,
-              zone: zone,
+              zone: finalZone,
               district: district,
               sapCode: sapCode || `SAP${index.toString().padStart(3, "0")}`,
               quantityLifted,
