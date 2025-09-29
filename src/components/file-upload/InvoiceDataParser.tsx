@@ -63,75 +63,181 @@ export const InvoiceDataParser = ({
           pivotHeaderRowIndex + 1
         ) as any[][];
 
-        const invoiceData: InvoiceData[] = pivotDataRows
-          .filter((row) =>
-            row.some(
-              (cell) => cell !== null && cell !== undefined && cell !== ""
-            )
-          )
-          .map((row, index) => {
-            const findColIndex = (keywords: string[]): number => {
-              return pivotHeaders.findIndex((h) =>
-                h && typeof h === 'string' && keywords.some(keyword =>
+        // Filter out empty rows
+        const validDataRows = pivotDataRows.filter((row) =>
+          row.some((cell) => cell !== null && cell !== undefined && cell !== "")
+        );
+
+        // Group rows by customer name + zone for aggregation
+        const aggregatedData = new Map<
+          string,
+          {
+            customerName: string;
+            zone: string;
+            district: string;
+            sapCode: string;
+            quantityLifted: number;
+            godownRent: number;
+            loadingCharges: number;
+            unloadingCharges: number;
+            localTransportation: number;
+            freightBalance: number;
+            rowCount: number;
+          }
+        >();
+
+        validDataRows.forEach((row, index) => {
+          const findColIndex = (keywords: string[]): number => {
+            return pivotHeaders.findIndex(
+              (h) =>
+                h &&
+                typeof h === "string" &&
+                keywords.some((keyword) =>
                   h.toLowerCase().includes(keyword.toLowerCase())
                 )
-              );
-            };
+            );
+          };
 
-            const billToPartyNameColIndex = findColIndex(["bill to party name", "customer name"]);
-            const districtColIndex = findColIndex(["district", "location", "region"]);
-            const quantityLiftedColIndex = findColIndex(["sum of total qty lifted", "quantity lifted", "quantity"]);
-            const godownRentColIndex = findColIndex(["godown rent @ rs. 100/mt", "godown rent", "godown", "rent"]);
-            const loadingChargesColIndex = findColIndex(["loading", "loading charges"]);
-            const unloadingChargesColIndex = findColIndex(["unloading", "unloading charges"]);
-            const localTransportationColIndex = findColIndex(["local transportation", "local transport"]);
-            const freightBalanceColIndex = findColIndex(["sum of balance to be given as secondary frt.", "secondary frt.", "freight balance", "freight"]);
+          const zoneColIndex = findColIndex(["zone", "plant"]);
+          const billToPartyNameColIndex = findColIndex([
+            "bill to party name",
+            "customer name",
+          ]);
+          const districtColIndex = findColIndex([
+            "bill to district",
+            "district",
+            "location",
+            "region",
+          ]);
+          const sapCodeColIndex = findColIndex(["sap code", "sap"]);
+          const quantityLiftedColIndex = findColIndex([
+            "sum of total qty lifted",
+            "quantity lifted",
+            "quantity",
+          ]);
+          const godownRentColIndex = findColIndex([
+            "godown rent @ rs. 100/mt",
+            "godown rent",
+            "godown",
+            "rent",
+          ]);
+          const loadingChargesColIndex = findColIndex([
+            "loading",
+            "loading charges",
+          ]);
+          const unloadingChargesColIndex = findColIndex([
+            "unloading",
+            "unloading charges",
+          ]);
+          const localTransportationColIndex = findColIndex([
+            "local transportation",
+            "local transport",
+          ]);
+          const freightBalanceColIndex = findColIndex([
+            "sum of balance to be given as secondary frt.",
+            "secondary frt.",
+            "freight balance",
+            "freight",
+          ]);
 
-            const rawCustomerName = String(row[billToPartyNameColIndex] || "").trim();
-            const customerNameForDisplay = rawCustomerName;
-            const customerNameForMatching = rawCustomerName.toLowerCase();
+          const rawCustomerName = String(
+            row[billToPartyNameColIndex] || ""
+          ).trim();
+          const zone = String(row[zoneColIndex] || "").trim();
+          const district = String(
+            row[districtColIndex] || "Unknown District"
+          ).trim();
+          const sapCode = String(row[sapCodeColIndex] || "").trim();
 
-            const quantityLiftedValue = parseFloat(String(row[quantityLiftedColIndex]));
-            const quantityLifted = !isNaN(quantityLiftedValue) ? quantityLiftedValue : 0;
+          // Skip if no customer name
+          if (!rawCustomerName || rawCustomerName === "") return;
 
-            const godownRentValue = parseFloat(String(row[godownRentColIndex]));
-            const godownRent = !isNaN(godownRentValue) ? godownRentValue : 0;
+          // Create grouping key: customerName + zone
+          const groupKey = `${rawCustomerName.toLowerCase()}|${zone.toLowerCase()}`;
 
-            const loading = parseFloat(String(row[loadingChargesColIndex])) || 0;
-            const unloading = parseFloat(String(row[unloadingChargesColIndex])) || 0;
-            const localTransportation = parseFloat(String(row[localTransportationColIndex])) || 0;
-            const mainBillAmount = loading + unloading + localTransportation;
+          const quantityLiftedValue = parseFloat(
+            String(row[quantityLiftedColIndex] || 0)
+          );
+          const quantityLifted = !isNaN(quantityLiftedValue)
+            ? quantityLiftedValue
+            : 0;
 
-            const freightBalance = parseFloat(String(row[freightBalanceColIndex])) || 0;
+          const godownRentValue = parseFloat(
+            String(row[godownRentColIndex] || 0)
+          );
+          const godownRent = !isNaN(godownRentValue) ? godownRentValue : 0;
 
-            const calculatedTotalValue = godownRent + mainBillAmount + freightBalance;
+          const loading =
+            parseFloat(String(row[loadingChargesColIndex] || 0)) || 0;
+          const unloading =
+            parseFloat(String(row[unloadingChargesColIndex] || 0)) || 0;
+          const localTransportation =
+            parseFloat(String(row[localTransportationColIndex] || 0)) || 0;
+          const freightBalance =
+            parseFloat(String(row[freightBalanceColIndex] || 0)) || 0;
 
-            return {
-              sapCode: String(
-                row[findColIndex(["sap code", "sap"])] || `SAP${index.toString().padStart(3, "0")}`
-              ).trim(),
-              customerName: customerNameForDisplay,
-              customerNameForMatching: customerNameForMatching,
-              district: String(row[districtColIndex] || "Unknown District").trim(),
+          // Aggregate or create new group
+          if (aggregatedData.has(groupKey)) {
+            const existing = aggregatedData.get(groupKey)!;
+            existing.quantityLifted += quantityLifted;
+            existing.godownRent += godownRent;
+            existing.loadingCharges += loading;
+            existing.unloadingCharges += unloading;
+            existing.localTransportation += localTransportation;
+            existing.freightBalance += freightBalance;
+            existing.rowCount += 1;
+          } else {
+            aggregatedData.set(groupKey, {
+              customerName: rawCustomerName,
+              zone: zone,
+              district: district,
+              sapCode: sapCode || `SAP${index.toString().padStart(3, "0")}`,
               quantityLifted,
               godownRent,
-              mainBillAmount: mainBillAmount,
-              freightBalance,
               loadingCharges: loading,
               unloadingCharges: unloading,
               localTransportation: localTransportation,
-              totalValue: calculatedTotalValue,
-            };
-          });
+              freightBalance,
+              rowCount: 1,
+            });
+          }
+        });
 
-        const filteredInvoiceData = invoiceData.filter(
-          (invoice) => invoice.customerName && invoice.customerName !== ""
+        // Convert aggregated data to InvoiceData array
+        const invoiceData: InvoiceData[] = Array.from(
+          aggregatedData.values()
+        ).map((aggregated, index) => {
+          const mainBillAmount =
+            aggregated.loadingCharges +
+            aggregated.unloadingCharges +
+            aggregated.localTransportation;
+          const totalValue =
+            aggregated.godownRent + mainBillAmount + aggregated.freightBalance;
+
+          return {
+            sapCode: aggregated.sapCode,
+            customerName: aggregated.customerName,
+            customerNameForMatching: aggregated.customerName.toLowerCase(),
+            district: aggregated.district,
+            quantityLifted: aggregated.quantityLifted,
+            godownRent: aggregated.godownRent,
+            mainBillAmount: mainBillAmount,
+            freightBalance: aggregated.freightBalance,
+            loadingCharges: aggregated.loadingCharges,
+            unloadingCharges: aggregated.unloadingCharges,
+            localTransportation: aggregated.localTransportation,
+            totalValue: totalValue,
+          };
+        });
+
+        console.log(
+          `Aggregated ${validDataRows.length} rows into ${invoiceData.length} customer-zone groups`
         );
 
-        onInvoiceDataParsed(filteredInvoiceData);
+        onInvoiceDataParsed(invoiceData);
         toast({
           title: "Invoice Data Parsed Successfully",
-          description: `Found ${filteredInvoiceData.length} invoice records from the Pivot sheet.`,
+          description: `Aggregated ${validDataRows.length} rows into ${invoiceData.length} customer-zone groups from the Pivot sheet.`,
         });
       } catch (error) {
         console.error("Error parsing invoice data:", error);
