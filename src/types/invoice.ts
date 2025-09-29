@@ -24,6 +24,10 @@ export interface InvoiceData {
   totalValue: number; // Sum of godownRent, mainBillAmount, and freightBalance
 }
 
+export interface MergedInvoiceData extends InvoiceData {
+  customer: CustomerData;
+}
+
 export interface Invoice {
   id: string;
   type: "godown" | "main" | "freight";

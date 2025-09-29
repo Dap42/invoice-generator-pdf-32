@@ -58,7 +58,10 @@ export const InvoiceDataParser = ({
         }
 
         const pivotHeaders = pivotJsonData[pivotHeaderRowIndex] as string[];
+        console.log("=== DEBUG: Invoice Data Parser Started ===");
         console.log("Detected Headers (Pivot.):", pivotHeaders);
+        console.log("Total rows found:", pivotJsonData.length);
+        console.log("Header row index:", pivotHeaderRowIndex);
         const pivotDataRows = pivotJsonData.slice(
           pivotHeaderRowIndex + 1
         ) as any[][];
@@ -68,30 +71,82 @@ export const InvoiceDataParser = ({
           row.some((cell) => cell !== null && cell !== undefined && cell !== "")
         );
 
-        // UP Zone Detection Function
+        // Enhanced UP Zone Detection Function - Only checks zone column
         const isUPZone = (plantValue: string, zoneValue: string): boolean => {
-          const plant = (plantValue || "").toString().toLowerCase();
-          const zone = (zoneValue || "").toString().toLowerCase();
+          // Only check zone column as requested
+          const zone = (zoneValue || "").toString().toLowerCase().trim();
 
-          // Check PLANT column for UP indicators
-          if (
-            plant.includes("w.up") ||
-            plant.includes("e.up") ||
-            plant.includes("gajraula")
-          ) {
-            return true;
-          }
+          // Log for debugging
+          console.log(`=== ZONE DETECTION DEBUG ===`);
+          console.log(`Raw zone value: "${zoneValue}"`);
+          console.log(`Normalized zone: "${zone}"`);
 
-          // Check Zone column for UP indicators
-          if (
-            zone.includes("westup") ||
-            zone.includes("east up") ||
-            zone.includes("potato belt")
-          ) {
-            return true;
-          }
+          // Comprehensive UP indicators with fuzzy matching
+          const upIndicators = [
+            // Exact matches
+            "westup",
+            "eastup",
+            "wup",
+            "eup",
+            "west up",
+            "east up",
+            "w up",
+            "e up",
+            "potato belt",
+            "potatobelt",
+            "potato",
+            "belt",
 
-          return false;
+            // Common variations
+            "w.up",
+            "e.up",
+            "w-up",
+            "e-up",
+            "west-up",
+            "east-up",
+            "westu",
+            "eastu",
+            "wu",
+            "eu",
+
+            // UP region patterns
+            "up west",
+            "up east",
+            "west up",
+            "east up",
+            "u.p. west",
+            "u.p. east",
+            "up-west",
+            "up-east",
+
+            // Common typos and abbreviations
+            "wstup",
+            "estup",
+            "wst up",
+            "est up",
+            "wstup",
+            "etup",
+            "wst-up",
+            "est-up",
+          ];
+
+          // Check if zone contains any UP indicators
+          const zoneMatch = upIndicators.some((indicator) => {
+            const matches = zone.includes(indicator) || zone === indicator;
+            if (matches) {
+              console.log(
+                `MATCH FOUND: "${zone}" contains/equals "${indicator}"`
+              );
+            }
+            return matches;
+          });
+
+          console.log(
+            `Zone detection result: ${zoneMatch} for zone: "${zone}"`
+          );
+          console.log(`UP indicators checked: ${upIndicators.length}`);
+
+          return zoneMatch;
         };
 
         // Group rows by customer name + UP/Non-UP classification for aggregation
@@ -113,8 +168,11 @@ export const InvoiceDataParser = ({
         >();
 
         validDataRows.forEach((row, index) => {
+          console.log(`\n=== DEBUG: Processing Row ${index + 1} ===`);
+          console.log("Raw row data:", row);
+
           const findColIndex = (keywords: string[]): number => {
-            return pivotHeaders.findIndex(
+            const foundIndex = pivotHeaders.findIndex(
               (h) =>
                 h &&
                 typeof h === "string" &&
@@ -122,11 +180,25 @@ export const InvoiceDataParser = ({
                   h.toLowerCase().includes(keyword.toLowerCase())
                 )
             );
+            console.log(
+              `Column search for "${keywords.join(
+                '", "'
+              )}" - Found at index: ${foundIndex}`
+            );
+            if (foundIndex >= 0) {
+              console.log(`Column header: "${pivotHeaders[foundIndex]}"`);
+            } else {
+              console.log(
+                `Column NOT FOUND for keywords: "${keywords.join('", "')}"`
+              );
+            }
+            return foundIndex;
           };
 
           const plantColIndex = 0; // First column is PLANT
-          const zoneColIndex = findColIndex(["zone", "plant"]);
+          const zoneColIndex = findColIndex(["Zone", "zone", "plant"]);
           const billToPartyNameColIndex = findColIndex([
+            "Bill To Party Name",
             "bill to party name",
             "customer name",
           ]);
@@ -136,31 +208,40 @@ export const InvoiceDataParser = ({
             "location",
             "region",
           ]);
-          const sapCodeColIndex = findColIndex(["sap code", "sap"]);
+          const sapCodeColIndex = findColIndex(["SAP Code", "sap code", "sap"]);
           const quantityLiftedColIndex = findColIndex([
+            "Sum of Total QTY Lifted",
             "sum of total qty lifted",
             "quantity lifted",
             "quantity",
           ]);
           const godownRentColIndex = findColIndex([
+            "Godown Rent @ Rs. 100/mt (Ist Bill)",
             "godown rent @ rs. 100/mt",
             "godown rent",
             "godown",
             "rent",
           ]);
           const loadingChargesColIndex = findColIndex([
+            "Loading @ Rs. 75/mt",
+            "loading @ rs. 75/mt",
             "loading",
             "loading charges",
           ]);
           const unloadingChargesColIndex = findColIndex([
+            "Unloading @ Rs. 75/mt",
+            "unloading @ rs. 75/mt",
             "unloading",
             "unloading charges",
           ]);
           const localTransportationColIndex = findColIndex([
+            "Local Transportation @ Rs. 200/mt",
+            "local transportation @ rs. 200/mt",
             "local transportation",
             "local transport",
           ]);
           const freightBalanceColIndex = findColIndex([
+            "Sum of Balance to be given as Secondary Frt. (3rd Bill)",
             "sum of balance to be given as secondary frt.",
             "secondary frt.",
             "freight balance",
@@ -177,27 +258,58 @@ export const InvoiceDataParser = ({
           ).trim();
           const sapCode = String(row[sapCodeColIndex] || "").trim();
 
+          console.log("=== EXTRACTED VALUES ===");
+          console.log(
+            `Customer Name: "${rawCustomerName}" (Index: ${billToPartyNameColIndex})`
+          );
+          console.log(`Plant Value: "${plantValue}" (Index: ${plantColIndex})`);
+          console.log(`Zone Value: "${zoneValue}" (Index: ${zoneColIndex})`);
+          console.log(`District: "${district}" (Index: ${districtColIndex})`);
+          console.log(`SAP Code: "${sapCode}" (Index: ${sapCodeColIndex})`);
+
           // Skip if no customer name
-          if (!rawCustomerName || rawCustomerName === "") return;
+          if (!rawCustomerName || rawCustomerName === "") {
+            console.log("SKIPPING ROW - No customer name found");
+            return;
+          }
 
           // Determine if this is UP zone
           const isUp = isUPZone(plantValue, zoneValue);
           const finalZone = isUp ? "UP" : zoneValue;
 
-          // Create grouping key: customerName + finalZone
-          const groupKey = `${rawCustomerName.toLowerCase()}|${finalZone.toLowerCase()}`;
+          // Log zone detection results for debugging
+          if (zoneValue && zoneValue.toString().trim()) {
+            console.log(
+              `Zone Detection Debug - Raw: "${zoneValue}", Detected UP: ${isUp}, Final Zone: "${finalZone}"`
+            );
+          }
 
+          // Create grouping key: customerName + finalZone
+          const normalizedCustomerName = rawCustomerName.toLowerCase().trim();
+          const groupKey = `${normalizedCustomerName}|${finalZone.toLowerCase()}`;
+          console.log(
+            `Customer: "${rawCustomerName}" -> Normalized: "${normalizedCustomerName}"`
+          );
+          console.log(`Generated Group Key: "${groupKey}"`);
+
+          console.log("=== NUMERIC VALUE PARSING ===");
           const quantityLiftedValue = parseFloat(
             String(row[quantityLiftedColIndex] || 0)
           );
           const quantityLifted = !isNaN(quantityLiftedValue)
             ? quantityLiftedValue
             : 0;
+          console.log(
+            `Quantity Lifted: ${quantityLifted} (raw: "${row[quantityLiftedColIndex]}")`
+          );
 
           const godownRentValue = parseFloat(
             String(row[godownRentColIndex] || 0)
           );
           const godownRent = !isNaN(godownRentValue) ? godownRentValue : 0;
+          console.log(
+            `Godown Rent: ${godownRent} (raw: "${row[godownRentColIndex]}")`
+          );
 
           const loading =
             parseFloat(String(row[loadingChargesColIndex] || 0)) || 0;
@@ -208,17 +320,35 @@ export const InvoiceDataParser = ({
           const freightBalance =
             parseFloat(String(row[freightBalanceColIndex] || 0)) || 0;
 
+          console.log(
+            `Loading: ${loading}, Unloading: ${unloading}, Local Transport: ${localTransportation}, Freight Balance: ${freightBalance}`
+          );
+
           // Aggregate or create new group
-          if (aggregatedData.has(groupKey)) {
-            const existing = aggregatedData.get(groupKey)!;
-            existing.quantityLifted += quantityLifted;
-            existing.godownRent += godownRent;
-            existing.loadingCharges += loading;
-            existing.unloadingCharges += unloading;
-            existing.localTransportation += localTransportation;
-            existing.freightBalance += freightBalance;
-            existing.rowCount += 1;
+          const existingGroup = aggregatedData.get(groupKey);
+          if (existingGroup) {
+            console.log(
+              `AGGREGATING - Adding to existing group for key: "${groupKey}"`
+            );
+            console.log(
+              `Before aggregation - Quantity: ${existingGroup.quantityLifted}, Godown Rent: ${existingGroup.godownRent}`
+            );
+
+            existingGroup.quantityLifted += quantityLifted;
+            existingGroup.godownRent += godownRent;
+            existingGroup.loadingCharges += loading;
+            existingGroup.unloadingCharges += unloading;
+            existingGroup.localTransportation += localTransportation;
+            existingGroup.freightBalance += freightBalance;
+            existingGroup.rowCount += 1;
+
+            console.log(
+              `After aggregation - Quantity: ${existingGroup.quantityLifted}, Godown Rent: ${existingGroup.godownRent}, Row Count: ${existingGroup.rowCount}`
+            );
           } else {
+            console.log(
+              `CREATING NEW GROUP - New group for key: "${groupKey}"`
+            );
             aggregatedData.set(groupKey, {
               customerName: rawCustomerName,
               zone: finalZone,
@@ -232,6 +362,9 @@ export const InvoiceDataParser = ({
               freightBalance,
               rowCount: 1,
             });
+            console.log(
+              `New group created with Quantity: ${quantityLifted}, Godown Rent: ${godownRent}`
+            );
           }
         });
 
@@ -260,6 +393,64 @@ export const InvoiceDataParser = ({
             localTransportation: aggregated.localTransportation,
             totalValue: totalValue,
           };
+        });
+
+        console.log("\n=== FINAL AGGREGATION RESULTS ===");
+        console.log(`Total valid rows processed: ${validDataRows.length}`);
+        console.log(`Total aggregated groups: ${aggregatedData.size}`);
+        console.log(`Total invoice data items: ${invoiceData.length}`);
+
+        console.log("\n=== DETAILED AGGREGATION SUMMARY ===");
+        let totalQuantity = 0;
+        let totalGodownRent = 0;
+        let totalMainBillAmount = 0;
+        let totalFreightBalance = 0;
+
+        aggregatedData.forEach((value, key) => {
+          console.log(`\nGroup: ${key}`);
+          console.log(`  Customer: ${value.customerName}`);
+          console.log(`  Zone: ${value.zone}`);
+          console.log(`  District: ${value.district}`);
+          console.log(`  SAP Code: ${value.sapCode}`);
+          console.log(`  Quantity Lifted: ${value.quantityLifted}`);
+          console.log(`  Godown Rent: ${value.godownRent}`);
+          console.log(`  Loading Charges: ${value.loadingCharges}`);
+          console.log(`  Unloading Charges: ${value.unloadingCharges}`);
+          console.log(`  Local Transportation: ${value.localTransportation}`);
+          console.log(`  Freight Balance: ${value.freightBalance}`);
+          console.log(`  Row Count: ${value.rowCount}`);
+
+          totalQuantity += value.quantityLifted;
+          totalGodownRent += value.godownRent;
+          totalMainBillAmount +=
+            value.loadingCharges +
+            value.unloadingCharges +
+            value.localTransportation;
+          totalFreightBalance += value.freightBalance;
+        });
+
+        console.log("\n=== AGGREGATION TOTALS ===");
+        console.log(`Total Quantity Lifted: ${totalQuantity}`);
+        console.log(`Total Godown Rent: ${totalGodownRent}`);
+        console.log(`Total Main Bill Amount: ${totalMainBillAmount}`);
+        console.log(`Total Freight Balance: ${totalFreightBalance}`);
+        console.log(
+          `Grand Total: ${
+            totalGodownRent + totalMainBillAmount + totalFreightBalance
+          }`
+        );
+
+        console.log("\n=== FINAL INVOICE DATA ===");
+        invoiceData.forEach((item, index) => {
+          console.log(`\nInvoice Item ${index + 1}:`);
+          console.log(`  SAP Code: ${item.sapCode}`);
+          console.log(`  Customer: ${item.customerName}`);
+          console.log(`  District: ${item.district}`);
+          console.log(`  Quantity: ${item.quantityLifted}`);
+          console.log(`  Godown Rent: ${item.godownRent}`);
+          console.log(`  Main Bill: ${item.mainBillAmount}`);
+          console.log(`  Freight Balance: ${item.freightBalance}`);
+          console.log(`  Total Value: ${item.totalValue}`);
         });
 
         console.log(

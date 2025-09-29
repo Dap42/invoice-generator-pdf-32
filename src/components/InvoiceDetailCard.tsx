@@ -35,10 +35,7 @@ export const InvoiceDetailCard = ({
   };
 
   return (
-    <div
-      key={invoice.id}
-      className="flex items-center justify-between p-3 bg-background border rounded-lg hover:shadow-sm transition-all"
-    >
+    <div className="flex items-center justify-between p-3 bg-background border rounded-lg hover:shadow-sm transition-all">
       <div className="flex items-center gap-3">
         <div className="p-2 bg-primary/10 rounded">
           <FileText className="h-4 w-4 text-primary" />

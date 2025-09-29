@@ -120,7 +120,7 @@ export const GeneratedInvoiceList = ({
           {/* Group invoices by customer with collapsible dropdowns */}
           {Array.from(
             new Set(filteredGeneratedInvoices.map((inv) => inv.customerName))
-          ).map((customerName) => {
+          ).map((customerName, index) => {
             const customerInvoices = filteredGeneratedInvoices.filter(
               (inv) => inv.customerName === customerName
             );
@@ -130,9 +130,12 @@ export const GeneratedInvoiceList = ({
               0
             );
 
+            // Create unique key using customer name + index to avoid duplicates
+            const uniqueKey = `${customerName}-${index}`;
+
             return (
               <Collapsible
-                key={customerName}
+                key={uniqueKey}
                 open={isOpen}
                 onOpenChange={() => toggleCustomer(customerName)}
               >
