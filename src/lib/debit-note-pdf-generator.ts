@@ -92,7 +92,7 @@ export const generateDebitNotePDF = (
   } else if (invoiceType === "main") {
     subjectText = "Subject: Reimbursement of Handling Expenses.";
   } else if (invoiceType === "freight") {
-    subjectText = "Subject: Reimbursement of Secondary Freight.";
+    subjectText = "Subject: Reimbursement of Freight.";
   }
   doc.text(subjectText, 20, currentYPosition + 7); // Increased spacing
   currentYPosition += 16; // Increased spacing
@@ -113,7 +113,7 @@ export const generateDebitNotePDF = (
       "Requested to kindly reimburse the Handling Expenses as per details given as under:";
   } else if (invoiceType === "freight") {
     introductoryText =
-      "Requested to kindly reimburse the Secondary Freight Expenses as per details given as below:";
+      "Requested to kindly reimburse the Freight Expenses as per details given as below:";
   }
   doc.text(introductoryText, 20, currentYPosition);
   currentYPosition += 12; // Increased spacing
