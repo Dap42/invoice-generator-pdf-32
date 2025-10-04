@@ -65,91 +65,23 @@ export const generateDebitNotePDF = (
   doc.text("To:", 20, currentYPosition);
   currentYPosition += 7; // Increased spacing
 
-  // Dynamically determine Jubilant address based on customer state
-  const jubilantLocations: {
-    [key: string]: { address: string[]; gstin: string };
-  } = {
-    "Uttar Pradesh": {
-      address: [
-        "ADD:- NH-24, JUBILANT AGRI AND CONSUMER PRODUCTS LIMITED UNIT-I,",
-        "BHARTIAGRAM, GAJRAULA, Amroha, Uttar Pradesh, 244223",
-      ],
-      gstin: "09AADCC4657M1Z7",
-    },
-    Bihar: {
-      address: [
-        "ADD:- Word No.61, Khata No.402, Birua Chak, Ranipur Khidki, Patna, Patna, Bihar, 800008",
-      ],
-      gstin: "10AADCC4657M1ZO",
-    },
-    Punjab: {
-      address: [
-        "ADD:- Ground, Khasra no 730,31,32,33,708,722,723, Vlogis Warehouse, Zirakpur Patiala Highway, Nabha, Mohali, SAS Nagar, Punjab, 140603",
-      ],
-      gstin: "03AADCC4657M1ZJ",
-    },
-    "Madhya Pradesh": {
-      address: [
-        "ADD:- Ground Floor, 29/3,, Talavali Chanda, Indore, Indore, Madhya Pradesh, 452010",
-      ],
-      gstin: "23AADCC4657M1ZH",
-    },
-    Haryana: {
-      address: [
-        "ADD:- 3rd, 142, Chimes 142, Sector 44 Road, Sector 44, Gurugram, Gurugram, Haryana, 122003",
-      ],
-      gstin: "06AADCC4657M1ZD",
-    },
-    Rajasthan: {
-      address: [
-        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
-      ],
-      gstin: "08AADCC4657M1Z9",
-    },
-    Maharashtra: {
-      address: [
-        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
-      ],
-      gstin: "08AADCC4657M1Z9",
-    },
-    Gujarat: {
-      address: [
-        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
-      ],
-      gstin: "08AADCC4657M1Z9",
-    },
-    Chhattisgarh: {
-      address: [
-        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
-      ],
-      gstin: "08AADCC4657M1Z9",
-    },
-    Uttarakhand: {
-      address: [
-        "ADD:- Ground Floor, 1233-1235,1243, Kapasan road, Village Singhpur, Tehsil Kapasan, Chittorgarh, Rajasthan, 312207",
-      ],
-      gstin: "08AADCC4657M1Z9",
-    },
-  };
-
-  const jubilantInfo =
-    jubilantLocations[customerState] || jubilantLocations["Uttar Pradesh"]; // Fallback to UP
+  // Fixed Jubilant address for all customers
+  const fixedJubilantAddress = [
+    "The Sales Head",
+    "Jubilant Agri & Consumer Products Ltd.",
+    "Plot No 142, Chimes, 3rd Floor, Sector 44,",
+    "Gurugram 3rd Floor, Sector -44, Gurugram,",
+    "Haryana-1220003",
+  ];
 
   doc.setFont(undefined, "normal");
-  doc.text("The Sales Head", 20, currentYPosition);
-  currentYPosition += 5;
-  doc.text("JUBILANT AGRI AND CONSUMER PRODUCTS LIMITED", 20, currentYPosition);
-  currentYPosition += 5;
-  jubilantInfo.address.forEach((line) => {
-    const wrappedLines = doc.splitTextToSize(line, 170); // Wrap text to 170 units width
-    wrappedLines.forEach((wrappedLine) => {
-      doc.text(wrappedLine, 20, currentYPosition);
-      currentYPosition += 4.5; // Adjusted spacing for each wrapped line
-    });
+  fixedJubilantAddress.forEach((line) => {
+    doc.text(line, 20, currentYPosition);
+    currentYPosition += 5;
   });
-  doc.setFont(undefined, "bold"); // Make GSTIN bold
-  doc.text(`GSTIN : ${jubilantInfo.gstin}`, 20, currentYPosition);
-  currentYPosition += 7; // Adjusted spacing
+
+  // Note: No GSTIN shown for the fixed address as per user requirement
+  currentYPosition += 2; // Small spacing after address
 
   // Subject
   doc.setFontSize(11); // Increased font size
@@ -250,8 +182,7 @@ export const generateDebitNotePDF = (
 
   // Headers
   doc.text("Particulars", 20, currentYPosition);
-  // Reverting freight specific columns to match other types
-  doc.text("Qty in MT", 110, currentYPosition, { align: "center" });
+  // Remove "Qty in MT" header - leaving empty space in that position
   doc.text("Rate/MT", 140, currentYPosition, { align: "center" });
   doc.text("Amt. In Ru.", 180, currentYPosition, { align: "right" });
   currentYPosition += 6; // Increased spacing
@@ -265,11 +196,11 @@ export const generateDebitNotePDF = (
     // Only print other columns if they are not empty (i.e., it's the first line of a wrapped item)
     if (row[1] !== "") {
       if (invoiceType === "freight") {
-        doc.text(row[1], 110, currentYPosition, { align: "center" }); // Qty in MT
+        // Remove quantity data - leaving empty space at position 110
         doc.text("NA", 140, currentYPosition, { align: "center" }); // Rate/MT
         doc.text(row[3], 180, currentYPosition, { align: "right" }); // Amt. In Ru. (Corrected index from row[2] to row[3])
       } else {
-        doc.text(row[1], 110, currentYPosition, { align: "center" });
+        // Remove quantity data - leaving empty space at position 110
         doc.text(row[2], 140, currentYPosition, { align: "center" });
         doc.text(row[3], 180, currentYPosition, { align: "right" });
       }

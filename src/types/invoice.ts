@@ -6,6 +6,7 @@ export interface CustomerData {
   address?: string; // Optional Address
   email?: string; // Added email field
   mobile?: string; // Added mobile field
+  district?: string; // Added district field
 }
 
 export interface InvoiceData {

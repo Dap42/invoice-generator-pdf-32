@@ -71,85 +71,9 @@ export const InvoiceDataParser = ({
           row.some((cell) => cell !== null && cell !== undefined && cell !== "")
         );
 
-        // Enhanced UP Zone Detection Function - Only checks zone column
-        const isUPZone = (plantValue: string, zoneValue: string): boolean => {
-          // Only check zone column as requested
-          const zone = (zoneValue || "").toString().toLowerCase().trim();
+        // SAP Code-based aggregation - no zone detection needed
 
-          // Log for debugging
-          console.log(`=== ZONE DETECTION DEBUG ===`);
-          console.log(`Raw zone value: "${zoneValue}"`);
-          console.log(`Normalized zone: "${zone}"`);
-
-          // Comprehensive UP indicators with fuzzy matching
-          const upIndicators = [
-            // Exact matches
-            "westup",
-            "eastup",
-            "wup",
-            "eup",
-            "west up",
-            "east up",
-            "w up",
-            "e up",
-            "potato belt",
-            "potatobelt",
-            "potato",
-            "belt",
-
-            // Common variations
-            "w.up",
-            "e.up",
-            "w-up",
-            "e-up",
-            "west-up",
-            "east-up",
-            "westu",
-            "eastu",
-            "wu",
-            "eu",
-
-            // UP region patterns
-            "up west",
-            "up east",
-            "west up",
-            "east up",
-            "u.p. west",
-            "u.p. east",
-            "up-west",
-            "up-east",
-
-            // Common typos and abbreviations
-            "wstup",
-            "estup",
-            "wst up",
-            "est up",
-            "wstup",
-            "etup",
-            "wst-up",
-            "est-up",
-          ];
-
-          // Check if zone contains any UP indicators
-          const zoneMatch = upIndicators.some((indicator) => {
-            const matches = zone.includes(indicator) || zone === indicator;
-            if (matches) {
-              console.log(
-                `MATCH FOUND: "${zone}" contains/equals "${indicator}"`
-              );
-            }
-            return matches;
-          });
-
-          console.log(
-            `Zone detection result: ${zoneMatch} for zone: "${zone}"`
-          );
-          console.log(`UP indicators checked: ${upIndicators.length}`);
-
-          return zoneMatch;
-        };
-
-        // Group rows by customer name + UP/Non-UP classification for aggregation
+        // Group rows by SAP Code for aggregation
         const aggregatedData = new Map<
           string,
           {
@@ -267,30 +191,15 @@ export const InvoiceDataParser = ({
           console.log(`District: "${district}" (Index: ${districtColIndex})`);
           console.log(`SAP Code: "${sapCode}" (Index: ${sapCodeColIndex})`);
 
-          // Skip if no customer name
-          if (!rawCustomerName || rawCustomerName === "") {
-            console.log("SKIPPING ROW - No customer name found");
+          // Skip if no SAP code
+          if (!sapCode || sapCode === "") {
+            console.log("SKIPPING ROW - No SAP code found");
             return;
           }
 
-          // Determine if this is UP zone
-          const isUp = isUPZone(plantValue, zoneValue);
-          const finalZone = isUp ? "UP" : zoneValue;
-
-          // Log zone detection results for debugging
-          if (zoneValue && zoneValue.toString().trim()) {
-            console.log(
-              `Zone Detection Debug - Raw: "${zoneValue}", Detected UP: ${isUp}, Final Zone: "${finalZone}"`
-            );
-          }
-
-          // Create grouping key: customerName + finalZone
-          const normalizedCustomerName = rawCustomerName.toLowerCase().trim();
-          const groupKey = `${normalizedCustomerName}|${finalZone.toLowerCase()}`;
-          console.log(
-            `Customer: "${rawCustomerName}" -> Normalized: "${normalizedCustomerName}"`
-          );
-          console.log(`Generated Group Key: "${groupKey}"`);
+          // Create grouping key: SAP Code only
+          const groupKey = sapCode.trim();
+          console.log(`SAP Code: "${sapCode}" -> Group Key: "${groupKey}"`);
 
           console.log("=== NUMERIC VALUE PARSING ===");
           const quantityLiftedValue = parseFloat(
@@ -351,7 +260,7 @@ export const InvoiceDataParser = ({
             );
             aggregatedData.set(groupKey, {
               customerName: rawCustomerName,
-              zone: finalZone,
+              zone: zoneValue,
               district: district,
               sapCode: sapCode || `SAP${index.toString().padStart(3, "0")}`,
               quantityLifted,
@@ -454,13 +363,13 @@ export const InvoiceDataParser = ({
         });
 
         console.log(
-          `Aggregated ${validDataRows.length} rows into ${invoiceData.length} customer-zone groups`
+          `Aggregated ${validDataRows.length} rows into ${invoiceData.length} SAP code groups`
         );
 
         onInvoiceDataParsed(invoiceData);
         toast({
           title: "Invoice Data Parsed Successfully",
-          description: `Aggregated ${validDataRows.length} rows into ${invoiceData.length} customer-zone groups from the Pivot sheet.`,
+          description: `Aggregated ${validDataRows.length} rows into ${invoiceData.length} SAP code groups from the Pivot sheet.`,
         });
       } catch (error) {
         console.error("Error parsing invoice data:", error);

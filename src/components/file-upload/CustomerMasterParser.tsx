@@ -111,10 +111,10 @@ export const CustomerMasterParser = ({
             (customer) => customer.customerName && customer.customerName !== ""
           );
 
-        // Deduplicate customerData based on customerName
+        // Deduplicate customerData based on SAP Code (unique identifier)
         const uniqueCustomerData = Array.from(
           new Map(
-            customerData.map((customer) => [customer.customerName, customer])
+            customerData.map((customer) => [customer.sapCode, customer])
           ).values()
         );
 

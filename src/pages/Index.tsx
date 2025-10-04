@@ -5,7 +5,11 @@ import { InvoiceGenerator } from "@/components/InvoiceGenerator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FileSpreadsheet, Receipt, Zap } from "lucide-react";
-import type { CustomerData, InvoiceData, MergedInvoiceData } from "@/types/invoice";
+import type {
+  CustomerData,
+  InvoiceData,
+  MergedInvoiceData,
+} from "@/types/invoice";
 
 const Index = () => {
   const [customerData, setCustomerData] = useState<CustomerData[]>([]);
@@ -26,22 +30,28 @@ const Index = () => {
   const mergeData = (customers: CustomerData[], invoices: InvoiceData[]) => {
     if (customers.length === 0 || invoices.length === 0) return;
 
-    const merged = invoices.map(invoice => {
-      const customer = customers.find(c =>
-        c.customerName.toLowerCase() === invoice.customerNameForMatching
+    const merged = invoices.map((invoice) => {
+      const customer = customers.find(
+        (c) =>
+          c.sapCode.trim().toLowerCase() ===
+          invoice.sapCode?.trim().toLowerCase()
       );
 
-      const customerDetails: CustomerData = customer ? {
-        ...customer,
-        district: customer.district || invoice.district
-      } : {
-        sapCode: invoice.sapCode || `SAP${invoice.customerNameForMatching.substring(0, 3)}`,
-        customerName: invoice.customerName,
-        address: 'Address not found',
-        gstin: 'GSTIN not found',
-        pan: 'PAN not found',
-        district: invoice.district || 'Unknown District'
-      };
+      const customerDetails: CustomerData = customer
+        ? {
+            ...customer,
+            district: customer.district || invoice.district,
+          }
+        : {
+            sapCode:
+              invoice.sapCode ||
+              `SAP${invoice.customerNameForMatching.substring(0, 3)}`,
+            customerName: invoice.customerName,
+            address: "Address not found",
+            gstin: "GSTIN not found",
+            pan: "PAN not found",
+            district: invoice.district || "Unknown District",
+          };
 
       return {
         ...invoice,
@@ -69,10 +79,13 @@ const Index = () => {
             <div className="p-3 bg-primary rounded-lg">
               <Receipt className="h-8 w-8 text-primary-foreground" />
             </div>
-            <h1 className="text-4xl font-bold text-foreground">SmartInvoice Generator</h1>
+            <h1 className="text-4xl font-bold text-foreground">
+              SmartInvoice Generator
+            </h1>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Upload your Excel files, preview merged data, and generate professional invoices automatically
+            Upload your Excel files, preview merged data, and generate
+            professional invoices automatically
           </p>
         </div>
 
@@ -81,23 +94,33 @@ const Index = () => {
           {[
             { step: 1, icon: FileSpreadsheet, label: "Upload Files" },
             { step: 2, icon: FileSpreadsheet, label: "Preview Data" },
-            { step: 3, icon: Zap, label: "Generate Invoices" }
+            { step: 3, icon: Zap, label: "Generate Invoices" },
           ].map(({ step, icon: Icon, label }) => (
             <div key={step} className="flex items-center gap-2">
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                currentStep >= step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  currentStep >= step
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
                 <Icon className="h-5 w-5" />
               </div>
-              <span className={`font-medium ${
-                currentStep >= step ? 'text-foreground' : 'text-muted-foreground'
-              }`}>
+              <span
+                className={`font-medium ${
+                  currentStep >= step
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                }`}
+              >
                 {label}
               </span>
               {step < 3 && (
-                <div className={`w-8 h-0.5 ${
-                  currentStep > step ? 'bg-primary' : 'bg-muted'
-                }`} />
+                <div
+                  className={`w-8 h-0.5 ${
+                    currentStep > step ? "bg-primary" : "bg-muted"
+                  }`}
+                />
               )}
             </div>
           ))}
@@ -133,7 +156,6 @@ const Index = () => {
               <DataPreview
                 customerData={customerData}
                 invoiceData={invoiceData}
-                mergedData={mergedData}
               />
             </CardContent>
           </Card>
