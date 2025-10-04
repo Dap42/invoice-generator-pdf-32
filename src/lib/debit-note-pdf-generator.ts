@@ -139,7 +139,7 @@ export const generateDebitNotePDF = (
         85
       ); // Wrap text to 85 units width
 
-      // Push the first line with all data
+      // Push the first line with quantity and amount (no rate)
       serviceRows.push([
         wrappedMainParticulars[0], // First line of particulars
         formatNumber(
@@ -147,15 +147,14 @@ export const generateDebitNotePDF = (
             data.unloadingCharges / 75 +
             data.localTransportation / 200
         ), // Calculated Quantity
-        "NA", // Rate from Excel header
         formatNumber(
           data.loadingCharges + data.unloadingCharges + data.localTransportation
-        ), // Amount
+        ), // Amount (no rate column)
       ]);
 
       // Push subsequent lines of particulars without other data
       for (let i = 1; i < wrappedMainParticulars.length; i++) {
-        serviceRows.push([wrappedMainParticulars[i], "", "", ""]); // Empty strings for other columns
+        serviceRows.push([wrappedMainParticulars[i], "", ""]); // Empty strings for quantity and amount
       }
 
       totalAmountBeforeTax =
@@ -164,9 +163,7 @@ export const generateDebitNotePDF = (
     case "freight":
       serviceRows.push([
         "REIMBURSEMENT OF FREIGHT EXPENSES", // Particulars
-        "NA", // Qty in MT (dynamic)
-        "NA", // Rate from Excel header
-        formatNumber(data.freightBalance), // This is now the Amount column
+        formatNumber(data.freightBalance), // Amount only (no quantity, no rate)
       ]);
       totalAmountBeforeTax = data.freightBalance;
       break;
@@ -180,29 +177,44 @@ export const generateDebitNotePDF = (
   doc.setFontSize(10); // Increased font size for data section
   doc.setFont(undefined, "bold");
 
-  // Headers
-  doc.text("Particulars", 20, currentYPosition);
-  // Remove "Qty in MT" header - leaving empty space in that position
-  doc.text("Rate/MT", 140, currentYPosition, { align: "center" });
-  doc.text("Amt. In Ru.", 180, currentYPosition, { align: "right" });
+  // Headers - Different layout based on invoice type
+  if (invoiceType === "freight") {
+    // Freight: Only Particulars and Amount
+    doc.text("Particulars", 20, currentYPosition);
+    doc.text("Amt. In Ru.", 180, currentYPosition, { align: "right" });
+  } else if (invoiceType === "main") {
+    // Main: Particulars, Quantity, Amount (no Rate)
+    doc.text("Particulars", 20, currentYPosition);
+    doc.text("Qty in MT", 110, currentYPosition, { align: "center" });
+    doc.text("Amt. In Ru.", 180, currentYPosition, { align: "right" });
+  } else {
+    // Godown: Keep all columns as before
+    doc.text("Particulars", 20, currentYPosition);
+    doc.text("Rate/MT", 140, currentYPosition, { align: "center" });
+    doc.text("Amt. In Ru.", 180, currentYPosition, { align: "right" });
+  }
   currentYPosition += 6; // Increased spacing
 
   doc.setFont(undefined, "normal");
 
-  // Service Rows
+  // Service Rows - Different rendering based on invoice type
   serviceRows.forEach((row) => {
     doc.text(row[0], 20, currentYPosition); // Always print particulars
 
     // Only print other columns if they are not empty (i.e., it's the first line of a wrapped item)
     if (row[1] !== "") {
       if (invoiceType === "freight") {
-        // Remove quantity data - leaving empty space at position 110
-        doc.text("NA", 140, currentYPosition, { align: "center" }); // Rate/MT
-        doc.text(row[3], 180, currentYPosition, { align: "right" }); // Amt. In Ru. (Corrected index from row[2] to row[3])
+        // Freight: Only show amount (no quantity, no rate)
+        doc.text(row[1], 180, currentYPosition, { align: "right" }); // Amount only
+      } else if (invoiceType === "main") {
+        // Main: Show quantity and amount (no rate)
+        doc.text(row[1], 110, currentYPosition, { align: "center" }); // Quantity restored
+        doc.text(row[2], 180, currentYPosition, { align: "right" }); // Amount
       } else {
-        // Remove quantity data - leaving empty space at position 110
-        doc.text(row[2], 140, currentYPosition, { align: "center" });
-        doc.text(row[3], 180, currentYPosition, { align: "right" });
+        // Godown: Show all columns
+        doc.text(row[1], 110, currentYPosition, { align: "center" }); // Quantity
+        doc.text(row[2], 140, currentYPosition, { align: "center" }); // Rate
+        doc.text(row[3], 180, currentYPosition, { align: "right" }); // Amount
       }
     }
     currentYPosition += 6; // Increased spacing
