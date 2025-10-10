@@ -125,7 +125,7 @@ export const generateDebitNotePDF = (
     case "godown":
       serviceRows.push([
         "REIMBURSEMENT OF RENT EXPENSES", // Particulars
-        formatNumber(data.godownRent / 100), // Qty in MT (dynamic)
+        formatNumber(data.quantityLifted), // Quantity as per data
         formatNumber(100), // Rate/MT (dynamic)
         formatNumber(data.godownRent), // Amt. In Ru. (dynamic)
       ]);
@@ -142,11 +142,7 @@ export const generateDebitNotePDF = (
       // Push the first line with quantity and amount (no rate)
       serviceRows.push([
         wrappedMainParticulars[0], // First line of particulars
-        formatNumber(
-          data.loadingCharges / 75 +
-            data.unloadingCharges / 75 +
-            data.localTransportation / 200
-        ), // Calculated Quantity
+        formatNumber(data.quantityLifted), // Quantity as per data
         formatNumber(
           data.loadingCharges + data.unloadingCharges + data.localTransportation
         ), // Amount (no rate column)
